@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/client";
 import {
@@ -12,7 +12,9 @@ import {
 } from "@/lib/stripe/commission-engine";
 import { VERIFICATION_RATE } from "@/lib/commissions";
 
-export async function POST(req: NextRequest) {
+export const runtime = "nodejs";
+
+export async function POST(req: Request) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
 
@@ -33,6 +35,10 @@ export async function POST(req: NextRequest) {
     event = getStripe().webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Invalid signature";
+    console.error("Stripe webhook signature verification failed:", msg);
+    console.error("Sig header:", sig?.substring(0, 20) + "...");
+    console.error("Body length:", body.length);
+    console.error("Secret starts with:", webhookSecret.substring(0, 10) + "...");
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
