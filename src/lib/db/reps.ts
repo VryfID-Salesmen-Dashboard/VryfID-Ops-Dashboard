@@ -36,6 +36,19 @@ export async function getRepByClerkId(
   return (data as SalesRepRow | null) ?? null;
 }
 
+export async function getRepByEmail(
+  email: string,
+): Promise<SalesRepRow | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("sales_reps")
+    .select("*")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as SalesRepRow | null) ?? null;
+}
+
 export async function createRep(
   rep: Omit<SalesRepRow, "id" | "created_at" | "updated_at">,
 ): Promise<SalesRepRow> {
