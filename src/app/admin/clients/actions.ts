@@ -109,8 +109,8 @@ export async function createClientAction(
     revalidatePath(`/admin/reps/${rep.id}`);
     return { success: true };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create client";
+    console.error("createClientAction failed:", err);
+    const message = extractErrorMessage(err, "Failed to create client");
     return { success: false, error: message };
   }
 }
@@ -162,8 +162,8 @@ export async function updateClientAction(
     revalidatePath("/admin/clients");
     return { success: true };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to update client";
+    console.error("updateClientAction failed:", err);
+    const message = extractErrorMessage(err, "Failed to update client");
     return { success: false, error: message };
   }
 }
@@ -198,8 +198,22 @@ export async function reassignClientAction(
     revalidatePath("/admin/reps");
     return { success: true };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to reassign client";
+    console.error("reassignClientAction failed:", err);
+    const message = extractErrorMessage(err, "Failed to reassign client");
     return { success: false, error: message };
   }
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const e = err as { message?: unknown; code?: unknown; details?: unknown; hint?: unknown };
+    const parts: string[] = [];
+    if (typeof e.message === "string") parts.push(e.message);
+    if (typeof e.code === "string") parts.push(`(code: ${e.code})`);
+    if (typeof e.details === "string") parts.push(e.details);
+    if (typeof e.hint === "string") parts.push(`hint: ${e.hint}`);
+    if (parts.length > 0) return parts.join(" ");
+  }
+  return fallback;
 }
