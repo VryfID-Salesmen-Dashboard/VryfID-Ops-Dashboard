@@ -30,8 +30,19 @@ export async function createCommissionEvent(event: {
     (event.paymentAmount * event.commissionRate).toFixed(2),
   );
 
+  const supabase = getSupabaseAdmin();
+
+  const { data: existing, error: lookupErr } = await supabase
+    .from("commission_events")
+    .select("*")
+    .eq("stripe_payment_id", event.stripePaymentId)
+    .maybeSingle<CommissionEventRow>();
+
+  if (lookupErr) throw lookupErr;
+  if (existing) return existing;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (getSupabaseAdmin() as any)
+  const { data, error } = await (supabase as any)
     .from("commission_events")
     .insert({
       sales_rep_id: event.salesRepId,
