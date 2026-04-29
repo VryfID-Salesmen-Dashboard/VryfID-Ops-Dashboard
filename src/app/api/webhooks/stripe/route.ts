@@ -68,9 +68,15 @@ export async function POST(req: Request) {
         break;
     }
   } catch (err) {
-    console.error(`Webhook handler error for ${event.type}:`, err);
+    const detail =
+      err instanceof Error
+        ? err.message
+        : err && typeof err === "object"
+          ? JSON.stringify(err)
+          : String(err);
+    console.error(`Webhook handler error for ${event.type}: ${detail}`, err);
     return NextResponse.json(
-      { error: "Internal handler error" },
+      { error: "Internal handler error", detail },
       { status: 500 },
     );
   }
