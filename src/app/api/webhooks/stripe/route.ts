@@ -132,7 +132,12 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 async function handleChargeSucceeded(charge: Stripe.Charge) {
   // Subscription invoices fire both invoice.payment_succeeded and charge.succeeded.
   // Skip the charge to avoid double-counting; the invoice handler covers it.
-  if (charge.invoice) return;
+  // The `invoice` field exists on the Stripe API response but was dropped from
+  // the SDK's TypeScript types — assert to access it safely.
+  const invoiceRef = (
+    charge as { invoice?: string | Stripe.Invoice | null }
+  ).invoice;
+  if (invoiceRef) return;
 
   const customerId =
     typeof charge.customer === "string"
