@@ -50,6 +50,10 @@ export async function POST(req: Request) {
         );
         break;
 
+      case "charge.succeeded":
+        await handleChargeSucceeded(event.data.object as Stripe.Charge);
+        break;
+
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(
           event.data.object as Stripe.Subscription,
@@ -123,6 +127,43 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
       periodEnd,
     });
   }
+}
+
+async function handleChargeSucceeded(charge: Stripe.Charge) {
+  // Subscription invoices fire both invoice.payment_succeeded and charge.succeeded.
+  // Skip the charge to avoid double-counting; the invoice handler covers it.
+  if (charge.invoice) return;
+
+  const customerId =
+    typeof charge.customer === "string"
+      ? charge.customer
+      : charge.customer?.id;
+
+  if (!customerId) return;
+
+  const client = await findClientByStripeId(customerId);
+  if (!client) {
+    console.warn(`No VryfID client found for Stripe customer ${customerId}`);
+    return;
+  }
+
+  if (!isWithinCommissionWindow(client)) return;
+
+  const amount = (charge.amount ?? 0) / 100;
+  if (amount <= 0) return;
+
+  const date = toDateString(charge.created);
+
+  await createCommissionEvent({
+    salesRepId: client.sales_rep_id,
+    clientId: client.id,
+    stripePaymentId: charge.id,
+    eventType: "verification",
+    paymentAmount: amount,
+    commissionRate: Number(VERIFICATION_RATE),
+    periodStart: date,
+    periodEnd: date,
+  });
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
