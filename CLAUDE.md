@@ -61,8 +61,8 @@ Sales reps earn on BOTH revenue streams for **12 months** from the date each cli
 - Commission runs for **12 months** from client sign date
 
 ### Layer 2: Verification Residual
-- Rep earns **12%** of every verification fee their client generates
-- Fixed at 12% regardless of tier
+- Rep earns **5%** of every verification fee their client generates
+- Fixed at 5% regardless of tier
 - Runs for **12 months** from client sign date
 
 ### Layer 3: Quarterly Performance Bonuses
@@ -100,7 +100,7 @@ The rep's tier is determined by **lifetime clients signed** (cumulative, never r
 **CRITICAL RULES:**
 - Tiers are **permanent** — once a rep hits Proven, they never go back to Starter
 - Tier upgrades apply to **new clients only** — existing clients stay at the rate they were signed under
-- The verification residual rate is **always 12%** regardless of tier
+- The verification residual rate is **always 5%** regardless of tier
 - Each client has a `commission_rate_locked` field set at the time of signing based on the rep's tier at that moment
 
 ---
@@ -156,7 +156,7 @@ client_id           UUID REFERENCES clients(id) NOT NULL
 stripe_payment_id   TEXT NOT NULL                 -- Stripe charge/invoice ID
 event_type          TEXT NOT NULL                 -- 'subscription' or 'verification'
 payment_amount      DECIMAL(10,2) NOT NULL        -- gross amount charged to client
-commission_rate     DECIMAL(5,4) NOT NULL         -- rate applied (from locked rate or 0.12)
+commission_rate     DECIMAL(5,4) NOT NULL         -- rate applied (from locked rate or 0.05)
 commission_amount   DECIMAL(10,2) NOT NULL        -- calculated: payment_amount * commission_rate
 period_start        DATE NOT NULL                 -- billing period this covers
 period_end          DATE NOT NULL
@@ -269,7 +269,7 @@ Create an API route at `/api/webhooks/stripe` that handles these events:
 2. Check if client's `commission_end_date` has passed → if yes, skip commission (but still record payment for VryfID reporting)
 3. Determine payment type from invoice line items:
    - Subscription line items → create `commission_events` record with `event_type = 'subscription'` and `commission_rate = client.commission_rate_locked`
-   - Metered/usage line items (verifications) → create `commission_events` record with `event_type = 'verification'` and `commission_rate = 0.12`
+   - Metered/usage line items (verifications) → create `commission_events` record with `event_type = 'verification'` and `commission_rate = 0.05`
 4. Both types get `status = 'pending'` (require admin approval before payout)
 
 **`customer.subscription.deleted`**
@@ -322,7 +322,7 @@ function calculateCommission(stripePayment, client, salesRep):
   if payment.type == 'subscription':
     rate = client.commission_rate_locked  // frozen at sign time
   else if payment.type == 'verification':
-    rate = 0.12  // always 12%
+    rate = 0.05  // always 5%
   
   commission_amount = payment.amount * rate
   

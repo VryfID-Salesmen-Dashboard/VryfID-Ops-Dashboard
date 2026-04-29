@@ -42,4 +42,4 @@ export function commissionEndDate(signDate: string): string {
   return d.toISOString().split("T")[0];
 }
 
-export const VERIFICATION_RATE = "0.1200";
+export const VERIFICATION_RATE = "0.0500";

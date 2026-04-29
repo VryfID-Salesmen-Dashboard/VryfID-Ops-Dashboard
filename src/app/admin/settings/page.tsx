@@ -33,7 +33,7 @@ export default function SettingsPage() {
                 <span className="font-medium">35%</span>
               </div>
               <p className="text-xs text-neutral-400">
-                Verification residual is always 12% regardless of tier.
+                Verification residual is always 5% regardless of tier.
               </p>
             </div>
           </CardContent>
