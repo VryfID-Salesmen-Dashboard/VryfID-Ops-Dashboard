@@ -56,14 +56,33 @@ export async function createRepAction(
 
   try {
     const clerk = await clerkClient();
-    const invitation = await clerk.invitations.createInvitation({
-      emailAddress: email,
-      publicMetadata: { role: "sales_rep" },
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/sign-in`,
+
+    const existingUsers = await clerk.users.getUserList({
+      emailAddress: [email],
     });
 
+    let clerkUserId: string;
+
+    if (existingUsers.data.length > 0) {
+      const user = existingUsers.data[0];
+      clerkUserId = user.id;
+      await clerk.users.updateUser(user.id, {
+        publicMetadata: {
+          ...(user.publicMetadata ?? {}),
+          role: "sales_rep",
+        },
+      });
+    } else {
+      const invitation = await clerk.invitations.createInvitation({
+        emailAddress: email,
+        publicMetadata: { role: "sales_rep" },
+        redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/sign-in`,
+      });
+      clerkUserId = invitation.id;
+    }
+
     await createRep({
-      clerk_user_id: invitation.id,
+      clerk_user_id: clerkUserId,
       first_name: firstName,
       last_name: lastName,
       email,
@@ -79,9 +98,8 @@ export async function createRepAction(
     revalidatePath("/admin/reps");
     return { success: true };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create rep";
-    return { success: false, error: message };
+    console.error("createRepAction failed:", err);
+    return { success: false, error: extractErrorMessage(err, "Failed to create rep") };
   }
 }
 
@@ -122,8 +140,33 @@ export async function updateRepAction(
     revalidatePath(`/admin/reps/${id}`);
     return { success: true };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to update rep";
-    return { success: false, error: message };
+    console.error("updateRepAction failed:", err);
+    return { success: false, error: extractErrorMessage(err, "Failed to update rep") };
   }
+}
+
+function extractErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) return err.message;
+  if (err && typeof err === "object") {
+    const e = err as {
+      message?: unknown;
+      code?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      errors?: Array<{ message?: string; longMessage?: string; code?: string }>;
+    };
+    if (Array.isArray(e.errors) && e.errors.length > 0) {
+      return e.errors
+        .map((x) => x.longMessage || x.message || x.code || "")
+        .filter(Boolean)
+        .join("; ");
+    }
+    const parts: string[] = [];
+    if (typeof e.message === "string") parts.push(e.message);
+    if (typeof e.code === "string") parts.push(`(code: ${e.code})`);
+    if (typeof e.details === "string") parts.push(e.details);
+    if (typeof e.hint === "string") parts.push(`hint: ${e.hint}`);
+    if (parts.length > 0) return parts.join(" ");
+  }
+  return fallback;
 }
